@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #060606; color: #00ff41; font-family: 'monospace'; overflow: hidden; }
+        .reality-line { 
+            position: absolute; left: 50%; top: 0; bottom: 0; 
+            width: 2px; background: #fff; z-index: 20;
+            box-shadow: 0 0 20px #fff;
+        }
+        .future-candle { opacity: 0.9; filter: drop-shadow(0 0 10px var(--c)); }
+        .grid-bg { 
+            background-image: linear-gradient(to right, #111 1px, transparent 1px), 
+                              linear-gradient(to bottom, #111 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        #price-tag { transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Terminal Header -->
+    <div class="p-4 flex justify-between items-center border-b border-white/10">
+        <div>
+            <h1 class="text-xl font-black italic tracking-tighter text-white">AETHER VECTOR AI</h1>
+            <div class="text-[8px] text-green-500 font-bold uppercase tracking-widest">System Status: Vector Locked</div>
+        </div>
+        <div class="text-right">
+            <div id="price-tag" class="text-2xl font-black italic tracking-widest text-white">0.00000</div>
+        </div>
+    </div>
+
+    <!-- The Time-Shift Chart -->
+    <div class="flex-grow relative grid-bg overflow-hidden">
+        <div class="reality-line"></div>
+        <canvas id="vectorChart" class="w-full h-full"></canvas>
+        
+        <!-- Future Labels -->
+        <div class="absolute top-4 left-4 text-[10px] text-white opacity-20 italic underline">PAST (REALITY)</div>
+        <div class="absolute top-4 right-4 text-[10px] text-green-400 font-bold italic underline">FUTURE (AI PROJECTION)</div>
+    </div>
+
+    <!-- Trade Injection Bar -->
+    <div class="p-6 bg-black border-t border-white/10 space-y-4">
+        <div class="flex justify-between items-center px-4">
+            <div class="text-center">
+                <span class="text-[9px] opacity-40 uppercase">Next 1m</span>
+                <div id="dir1" class="text-xl font-bold">---</div>
+            </div>
+            <div class="text-center">
+                <span class="text-[9px] opacity-40 uppercase">Next 2m</span>
+                <div id="dir2" class="text-xl font-bold">---</div>
+            </div>
+            <div class="text-center">
+                <span class="text-[9px] opacity-40 uppercase">Next 3m</span>
+                <div id="dir3" class="text-xl font-bold">---</div>
+            </div>
+        </div>
+        
+        <button onclick="syncVector()" class="w-full py-5 bg-white text-black font-black uppercase tracking-[0.3em] rounded-sm hover:bg-green-500 transition-all">
+            SYNC VECTOR FORCE
+        </button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('vectorChart');
+        const ctx = canvas.getContext('2d');
+
+        async function syncVector() {
+            const pair = "EURUSD=X";
+            const res = await fetch(`/api/vector/${pair}`);
+            const data = await res.json();
+            
+            document.getElementById('price-tag').innerText = data.price.toFixed(5);
+            renderVector(data);
+        }
+
+        function renderVector(data) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const midX = canvas.width / 2;
+            const midY = canvas.height / 2;
+            const zoom = 20000;
+
+            data.future.forEach((c, i) => {
+                const x = midX + 30 + (i * 70);
+                const isUp = c.c > c.o;
+                const color = isUp ? "#00ff41" : "#ff003c";
+                
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineWidth = 2;
+
+                // Wick
+                ctx.beginPath();
+                ctx.moveTo(x + 20, midY - (c.h - data.current) * zoom);
+                ctx.lineTo(x + 20, midY - (c.l - data.current) * zoom);
+                ctx.stroke();
+
+                // Body
+                const bodyH = (c.o - c.c) * zoom;
+                ctx.fillRect(x, midY - (c.o - data.current) * zoom, 40, bodyH || 2);
+                
+                // Update Directions
+                const el = document.getElementById(`dir${i+1}`);
+                el.innerText = isUp ? "CALL 🟩" : "PUT 🟥";
+                el.style.color = color;
+            });
+        }
+
+        setInterval(syncVector, 5000); // Constant background sync
+        syncVector();
+    </script>
+</body>
+</html>
